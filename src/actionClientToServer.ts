@@ -46,6 +46,8 @@ export type {
 } from './actionClientLobby.js'
 
 export type {
+	ActionBlindPreview,
+	ActionCoopBossBlindRequest,
 	ActionFailRound,
 	ActionFailPvPTimer,
 	ActionFailTimer,

@@ -10,6 +10,7 @@ import {
 	getDefaultLobbyOptions,
 	getDefaultCustomWinnerCount,
 	getCustomWinnerLimit,
+	getLobbyTypeChangeOptionUpdates,
 	getLobbyTypeLockedOptions,
 	normalizeLobbyOptionString,
 	normalizeLobbyOptionValue,
@@ -239,6 +240,15 @@ export const applyLobbyOptions = (
 		refreshLobbyNemesisAssignmentsForLobby(lobby)
 	}
 	const lobbyTypeChanged = previousLobbyType !== lobby.lobbyType
+	if (lobbyTypeChanged) {
+		for (const [key, value] of Object.entries(
+			getLobbyTypeChangeOptionUpdates(previousLobbyType, lobby.lobbyType),
+		)) {
+			if (value === undefined) continue
+			lobby.setOption(key, value)
+			normalizedOptions[key] = value
+		}
+	}
 	applyDerivedLobbyTypeConstraints(lobby, normalizedOptions)
 
 	if (shouldBroadcast) {

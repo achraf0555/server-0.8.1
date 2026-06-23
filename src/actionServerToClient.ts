@@ -53,6 +53,8 @@ export type {
 
 export type {
 	ActionAloneGame,
+	ActionCoopBlindPreview,
+	ActionCoopBossBlind,
 	ActionEndPvP,
 	ActionEnemyInfo,
 	ActionEnemyLocation,

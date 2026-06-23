@@ -17,8 +17,16 @@ import {
 	lobbyUsesSharedSyncGroup,
 } from './sharedSyncGroups.js'
 
+const normalizeSkipAnte = (ante: unknown, fallbackAnte: number) => {
+	const numericAnte = Number(ante)
+	if (!Number.isFinite(numericAnte)) {
+		return Math.max(0, Math.trunc(fallbackAnte))
+	}
+	return Math.max(0, Math.trunc(numericAnte))
+}
+
 export const readySkipBlindAction = (
-	{ blindRow }: ActionHandlerArgs<ActionReadySkipBlind>,
+	{ blindRow, ante }: ActionHandlerArgs<ActionReadySkipBlind>,
 	client: Client,
 ) => {
 	const lobby = client.lobby
@@ -26,7 +34,8 @@ export const readySkipBlindAction = (
 	if (!client.isInMatch) return
 	if (!isSkipBlindRow(blindRow)) return
 
-	markPlayerReadyToSkipBlind(client, blindRow)
+	const skipAnte = normalizeSkipAnte(ante, client.ante)
+	markPlayerReadyToSkipBlind(client, blindRow, skipAnte)
 
 	const players = getLobbyActiveSharedSyncGroupPlayers(
 		lobby,
@@ -35,7 +44,9 @@ export const readySkipBlindAction = (
 	if (players.length === 0) return
 
 	const allReadyToSkip = players.every(
-		(player) => player.skipReadyBlindRow === blindRow,
+		(player) =>
+			player.skipReadyBlindRow === blindRow &&
+			player.skipReadyBlindAnte === skipAnte,
 	)
 	if (!allReadyToSkip) return
 
@@ -44,7 +55,11 @@ export const readySkipBlindAction = (
 	}
 
 	for (const player of players) {
-		sendTeamServerAction(player, { action: 'teamSkipBlind', blindRow })
+		sendTeamServerAction(player, {
+			action: 'teamSkipBlind',
+			blindRow,
+			ante: skipAnte,
+		})
 	}
 }
 

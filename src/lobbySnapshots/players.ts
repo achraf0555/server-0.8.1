@@ -15,6 +15,9 @@ const buildPlayerInfo = (
 		id: player.id,
 		username: player.username,
 		blindCol: player.blindCol,
+		...(player.blindTargetScale != null
+			? { blindTargetScale: player.blindTargetScale }
+			: {}),
 		nemesisPlayerId: player.nemesisPlayerId ?? undefined,
 		location: isDisconnected ? DISCONNECTED_LOCATION : player.location,
 		modHash: player.modHash,

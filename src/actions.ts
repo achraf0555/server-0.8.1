@@ -24,6 +24,8 @@ export type {
 
 export type {
 	ActionConnected,
+	ActionCoopBlindPreview,
+	ActionCoopBossBlind,
 	ActionEatPizza,
 	ActionEnemyDisconnected,
 	ActionEnemyInfo,
@@ -94,6 +96,8 @@ export type {
 
 export type {
 	ActionClientToServer,
+	ActionBlindPreview,
+	ActionCoopBossBlindRequest,
 	ActionCreateLobby,
 	ActionEatPizzaRequest,
 	ActionFailRound,

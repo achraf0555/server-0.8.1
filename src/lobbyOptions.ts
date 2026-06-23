@@ -1,11 +1,17 @@
 import type { LobbyOptionWireValue, LobbyType } from './actions.js'
 import contractData from './lobbyOptionContract.json' with { type: 'json' }
-import { isDuelsLobbyType, isHeadToHeadLobbyType } from './lobbyTypes.js'
+import {
+	isCoopLobbyType,
+	isDuelsLobbyType,
+	isHeadToHeadLobbyType,
+	isTeamLobbyType,
+} from './lobbyTypes.js'
 
 export interface LobbyOptions {
 	back?: string
 	challenge?: string
 	cocktail?: string
+	custom_bans?: string
 	coop_blind_scaling_per_player?: number
 	custom_seed?: string
 	death_on_round_loss?: boolean
@@ -247,12 +253,21 @@ export const getLobbyTypeLockedOptions = (
 		  ? { ...DUELS_LOBBY_OPTIONS }
 		  : {}
 
+const getLobbyTypeDefaultOptionOverrides = (
+	lobbyType: LobbyType,
+): LobbyOptions => ({
+	team_card_sync: isTeamLobbyType(lobbyType) || isCoopLobbyType(lobbyType),
+})
+
 export const getLobbyTypeChangeOptionUpdates = (
 	previousLobbyType: LobbyType,
 	nextLobbyType: LobbyType,
 ): LobbyOptions => {
 	if (isHeadToHeadLobbyType(nextLobbyType)) {
-		return getLobbyTypeLockedOptions(nextLobbyType)
+		return {
+			...getLobbyTypeDefaultOptionOverrides(nextLobbyType),
+			...getLobbyTypeLockedOptions(nextLobbyType),
+		}
 	}
 
 	const groupResetOptions = isHeadToHeadLobbyType(previousLobbyType)
@@ -264,16 +279,21 @@ export const getLobbyTypeChangeOptionUpdates = (
 
 	if (isDuelsLobbyType(nextLobbyType)) {
 		return {
+			...getLobbyTypeDefaultOptionOverrides(nextLobbyType),
 			...groupResetOptions,
 			...getLobbyTypeLockedOptions(nextLobbyType),
 		}
 	}
 
-	return groupResetOptions
+	return {
+		...getLobbyTypeDefaultOptionOverrides(nextLobbyType),
+		...groupResetOptions,
+	}
 }
 
 export const getDefaultLobbyOptions = (lobbyType: LobbyType): LobbyOptions => ({
 	...BASE_DEFAULT_LOBBY_OPTIONS,
 	...(isHeadToHeadLobbyType(lobbyType) ? {} : GROUP_DEFAULT_LOBBY_OPTIONS),
+	...getLobbyTypeDefaultOptionOverrides(lobbyType),
 	...getLobbyTypeLockedOptions(lobbyType),
 })

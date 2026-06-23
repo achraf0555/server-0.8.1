@@ -16,6 +16,12 @@ export const clearPendingBlindReadyState = (player: Client) => {
 	player.readyBlindHandsLeft = null
 	player.readyBlindTarget = null
 	player.skipReadyBlindRow = null
+	player.skipReadyBlindAnte = null
+}
+
+export const clearPlayerBlindPreviewState = (player: Client) => {
+	player.blindPreviewKey = null
+	player.blindPreviewTargets = {}
 }
 
 export const clearPlayerFirstReadyState = (player: Client) => {
@@ -56,6 +62,7 @@ export const preparePlayerForMatchStart = (player: Client) => {
 	player.reportedMoney = 0
 	player.furthestBlind = 0
 	player.livesBlocker = false
+	clearPlayerBlindPreviewState(player)
 	clearPendingBlindReadyState(player)
 	clearPlayerStartedBlindRuntimeState(player)
 	player.location = 'loc_selecting'
@@ -64,6 +71,7 @@ export const preparePlayerForMatchStart = (player: Client) => {
 export const clearPlayerMatchParticipation = (player: Client) => {
 	player.isInMatch = false
 	player.livesBlocker = false
+	clearPlayerBlindPreviewState(player)
 	clearPendingBlindReadyState(player)
 	clearPlayerStartedBlindRuntimeState(player)
 }
@@ -131,18 +139,22 @@ export const markPlayerReadyForBlind = (
 	)
 	player.readyBlindTarget = readyBlind.blindTarget ?? null
 	player.skipReadyBlindRow = null
+	player.skipReadyBlindAnte = null
 }
 
 export const markPlayerReadyToSkipBlind = (
 	player: Client,
 	blindRow: ActionReadySkipBlind['blindRow'],
+	ante: number | null = null,
 ) => {
 	clearPendingBlindReadyState(player)
 	player.skipReadyBlindRow = blindRow
+	player.skipReadyBlindAnte = ante
 }
 
 export const clearPlayerReadyToSkipBlind = (player: Client) => {
 	player.skipReadyBlindRow = null
+	player.skipReadyBlindAnte = null
 }
 
 export const preparePlayerForStartedBlind = (

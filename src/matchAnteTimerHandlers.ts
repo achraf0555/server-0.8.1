@@ -16,12 +16,49 @@ import { expireLobbyAnteTimer } from './roundFailureHandlers.js'
 import { traceRuntimeEvent } from './runtimeTrace.js'
 
 type AnteTimerMatchAction = ActionStartAnteTimer | ActionPauseAnteTimer
+type AnteTimerIntent = {
+	localTimer?: boolean
+}
+
+const LOCAL_TIMER_MODIFIERS = new Set([
+	'pressure_timer',
+	'pressure_timer_plus',
+	'no_animation_timer',
+	'pvp_timer',
+])
+
+const lobbyHasLocalTimerModifier = (lobby: NonNullable<Client['lobby']>) =>
+	String(lobby.options.modifier_layers ?? '')
+		.split(',')
+		.map((modifier) => modifier.trim())
+		.some((modifier) => LOCAL_TIMER_MODIFIERS.has(modifier))
 
 const sendAnteTimerAction = (
 	lobby: NonNullable<Client['lobby']>,
 	action: AnteTimerMatchAction,
 ) => {
 	broadcastLobbyMatchAction(lobby, action)
+}
+
+const relayLocalTimerAction = (
+	client: Client,
+	lobby: NonNullable<Client['lobby']>,
+	enemies: Client[],
+	action: AnteTimerMatchAction,
+	localTimer: boolean,
+) => {
+	if (!localTimer || !lobbyHasLocalTimerModifier(lobby)) {
+		return false
+	}
+
+	broadcastLobbyMatchAction(lobby, action, {
+		excludedPlayerId: client.id,
+	})
+	traceRuntimeEvent(`ante_timer.local_relay_${action.action}`, {
+		...buildLobbyTimerTraceFields(client, lobby),
+		enemyCount: enemies.length,
+	})
+	return true
 }
 
 const scheduleAnteTimerExpiry = (lobby: NonNullable<Client['lobby']>) => {
@@ -117,13 +154,28 @@ const buildAnteTimerTraceFields = (
 	time,
 })
 
-export const startAnteTimerAction = (client: Client) => {
-	const [lobby] = getEnemies(client)
+export const startAnteTimerAction = (
+	client: Client,
+	intent: AnteTimerIntent = {},
+) => {
+	const [lobby, enemies] = getEnemies(client)
 	if (!lobby || lobby.options.timer !== true) {
 		traceRuntimeEvent('ante_timer.start_ignored', {
 			playerId: client.id,
 			reason: lobby ? 'timer_disabled' : 'no_lobby',
 		})
+		return
+	}
+
+	if (
+		relayLocalTimerAction(
+			client,
+			lobby,
+			enemies,
+			{ action: 'startAnteTimer' },
+			intent.localTimer === true,
+		)
+	) {
 		return
 	}
 
@@ -160,13 +212,28 @@ export const startAnteTimerAction = (client: Client) => {
 	scheduleAnteTimerExpiry(lobby)
 }
 
-export const pauseAnteTimerAction = (client: Client) => {
-	const [lobby] = getEnemies(client)
+export const pauseAnteTimerAction = (
+	client: Client,
+	intent: AnteTimerIntent = {},
+) => {
+	const [lobby, enemies] = getEnemies(client)
 	if (!lobby || lobby.options.timer !== true) {
 		traceRuntimeEvent('ante_timer.pause_ignored', {
 			playerId: client.id,
 			reason: lobby ? 'timer_disabled' : 'no_lobby',
 		})
+		return
+	}
+
+	if (
+		relayLocalTimerAction(
+			client,
+			lobby,
+			enemies,
+			{ action: 'pauseAnteTimer' },
+			intent.localTimer === true,
+		)
+	) {
 		return
 	}
 

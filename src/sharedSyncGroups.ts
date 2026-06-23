@@ -34,8 +34,17 @@ export const lobbyUsesSharedSyncGroup = (
 export const isSharedSyncOptionEnabled = (
 	lobby: Lobby | null | undefined,
 	optionKey: SharedSyncOptionKey,
-): lobby is Lobby =>
-	lobbyUsesSharedSyncGroup(lobby) && lobby.options[optionKey] !== false
+): lobby is Lobby => {
+	if (!lobby || lobby.options[optionKey] === false) {
+		return false
+	}
+
+	if (optionKey === 'team_card_sync') {
+		return true
+	}
+
+	return isTeamLobbyType(lobby.lobbyType)
+}
 
 export const getClientSharedSyncGroupId = (client: SharedSyncGroupMember) =>
 	client.lobby && isCoopLobbyType(client.lobby.lobbyType)
@@ -49,6 +58,23 @@ export const getLobbyActiveSharedSyncGroupPlayers = (
 	isCoopLobbyType(lobby.lobbyType)
 		? getLobbyActivePlayers(lobby)
 		: getLobbyActiveTeamPlayers(lobby, groupId)
+
+const getClientSharedSyncGroupIdForOption = (
+	client: SharedSyncGroupMember,
+	optionKey: SharedSyncOptionKey,
+) =>
+	optionKey === 'team_card_sync'
+		? GLOBAL_COOP_SYNC_GROUP_ID
+		: getClientSharedSyncGroupId(client)
+
+const getLobbyActiveSharedSyncGroupPlayersForOption = (
+	lobby: Lobby,
+	groupId: number,
+	optionKey: SharedSyncOptionKey,
+) =>
+	optionKey === 'team_card_sync'
+		? getLobbyActivePlayers(lobby)
+		: getLobbyActiveSharedSyncGroupPlayers(lobby, groupId)
 
 export const clientsShareSyncGroup = (
 	lobby: Lobby | null | undefined,
@@ -74,7 +100,7 @@ export const getClientSharedSyncReplayContext = (
 
 	return {
 		lobby,
-		groupId: getClientSharedSyncGroupId(client),
+		groupId: getClientSharedSyncGroupIdForOption(client, optionKey),
 	}
 }
 
@@ -89,9 +115,10 @@ export const getActiveClientSharedSyncContext = (
 
 	return {
 		...context,
-		peers: getLobbyActiveSharedSyncGroupPlayers(
+		peers: getLobbyActiveSharedSyncGroupPlayersForOption(
 			context.lobby,
 			context.groupId,
+			optionKey,
 		).filter((player) => player.id !== client.id),
 	}
 }

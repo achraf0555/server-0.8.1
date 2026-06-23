@@ -15,6 +15,7 @@ export type LobbyPlayerWirePayload = {
 	id: string
 	username: string
 	blindCol: number
+	blindTargetScale?: number
 	nemesisPlayerId?: string
 	location?: string
 	modHash: string

@@ -20,6 +20,7 @@ class Client {
 	isCached = true
 	username = 'Guest'
 	blindCol = 1
+	blindTargetScale: number | null = null
 	nemesisPlayerId: string | null = null
 	modHash = 'NULL'
 	lobby: Lobby | null = null
@@ -31,10 +32,13 @@ class Client {
 	firstReady = false
 	coopBlindActive = false
 	skipReadyBlindRow: 'Small' | 'Big' | null = null
+	skipReadyBlindAnte: number | null = null
 	readyBlindRow: BlindRow | null = null
 	readyBlindKind: BlindKind | null = null
 	readyBlindHandsLeft: number | null = null
 	readyBlindTarget: string | null = null
+	blindPreviewKey: string | null = null
+	blindPreviewTargets: Partial<Record<BlindRow, string>> = {}
 	activeBlindStarted = false
 	activeBlindRow: BlindRow | null = null
 	activeBlindKind: BlindKind | null = null

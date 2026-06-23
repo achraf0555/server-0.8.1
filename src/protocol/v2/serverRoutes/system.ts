@@ -32,7 +32,8 @@ const validateIdentityPayload: ProtocolPayloadValidator<
 	isRecordPayload(payload) &&
 	hasNonEmptyStringWithinLength(payload, 'username', MAX_USERNAME_LENGTH) &&
 	hasNonEmptyStringWithinLength(payload, 'modHash', MAX_MOD_HASH_LENGTH) &&
-	hasOptionalFiniteNumber(payload, 'blindCol')
+	hasOptionalFiniteNumber(payload, 'blindCol') &&
+	hasOptionalFiniteNumber(payload, 'blindTargetScale')
 
 const validateVersionPayload: ProtocolPayloadValidator<
 	ActionHandlerArgs<ActionVersion>

@@ -29,6 +29,7 @@ export const buildSavedGameState = (client: Client): SavedGameState => ({
 		: client.location,
 	username: client.username,
 	blindCol: client.blindCol,
+	blindTargetScale: client.blindTargetScale,
 	nemesisPlayerId: client.nemesisPlayerId,
 	modHash: client.modHash,
 	team: client.team,
@@ -38,6 +39,7 @@ export const buildSavedGameState = (client: Client): SavedGameState => ({
 	activeBlindRow: client.activeBlindRow,
 	activeBlindKind: client.activeBlindKind,
 	skipReadyBlindRow: null,
+	skipReadyBlindAnte: null,
 	readyBlindRow: null,
 	readyBlindKind: null,
 	isCached: client.isCached,
@@ -53,6 +55,7 @@ export const restoreSavedGameState = (
 	client.reconnectToken = savedState.reconnectToken
 	client.username = savedState.username
 	client.blindCol = savedState.blindCol
+	client.blindTargetScale = savedState.blindTargetScale
 	client.nemesisPlayerId = savedState.nemesisPlayerId
 	client.modHash = savedState.modHash
 	client.isReadyLobby = savedState.isReadyLobby
@@ -72,6 +75,7 @@ export const restoreSavedGameState = (
 	client.activeBlindRow = savedState.activeBlindRow ?? null
 	client.activeBlindKind = savedState.activeBlindKind ?? null
 	client.skipReadyBlindRow = savedState.skipReadyBlindRow
+	client.skipReadyBlindAnte = savedState.skipReadyBlindAnte ?? null
 	client.readyBlindRow = savedState.readyBlindRow
 	client.readyBlindKind = savedState.readyBlindKind
 	client.livesBlocker = savedState.livesBlocker

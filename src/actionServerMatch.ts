@@ -11,10 +11,26 @@ export type ActionStartBlind = {
 	blindRow?: BlindRow
 	blindKind?: BlindKind
 	duelRole?: 'pair' | 'bye'
+	blindTarget?: string
+}
+export type ActionCoopBlindPreview = {
+	action: 'coopBlindPreview'
+	previewKey: string
+	targets: Partial<Record<BlindRow, string>>
+}
+export type ActionCoopBossBlind = {
+	action: 'coopBossBlind'
+	phase: 'start' | 'result'
+	ante: number
+	revision: number
+	sourcePlayerId: string
+	bossKey?: string
+	isReroll?: boolean
 }
 export type ActionTeamSkipBlind = {
 	action: 'teamSkipBlind'
 	blindRow: 'Small' | 'Big'
+	ante?: number
 }
 export type ActionWinGame = { action: 'winGame' }
 export type ActionAloneGame = { action: 'aloneGame' }
@@ -79,6 +95,8 @@ export type ActionMoneyUpdate = {
 export type ActionServerMatch =
 	| ActionStartGame
 	| ActionStartBlind
+	| ActionCoopBlindPreview
+	| ActionCoopBossBlind
 	| ActionTeamSkipBlind
 	| ActionWinGame
 	| ActionAloneGame

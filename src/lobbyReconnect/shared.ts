@@ -22,6 +22,7 @@ export interface SavedGameState {
 	location: string
 	username: string
 	blindCol: number
+	blindTargetScale: number | null
 	nemesisPlayerId: string | null
 	modHash: string
 	team: number | null
@@ -31,6 +32,7 @@ export interface SavedGameState {
 	activeBlindRow: BlindRow | null
 	activeBlindKind: BlindKind | null
 	skipReadyBlindRow: Client['skipReadyBlindRow']
+	skipReadyBlindAnte: Client['skipReadyBlindAnte']
 	readyBlindRow: BlindRow | null
 	readyBlindKind: BlindKind | null
 	isCached: boolean

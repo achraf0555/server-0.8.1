@@ -1,7 +1,13 @@
-import { parseFiniteInsaneInt } from './InsaneInt.js'
+import { InsaneInt, parseFiniteInsaneInt } from './InsaneInt.js'
 import type Client from './Client.js'
-import type { ActionHandlerArgs, ActionPlayHand, BlindKind } from './actions.js'
-import { sumScores } from './blindScoring.js'
+import type {
+	ActionBlindPreview,
+	ActionHandlerArgs,
+	ActionPlayHand,
+	BlindKind,
+	BlindRow,
+} from './actions.js'
+import { sumScores, sumScoreValues } from './blindScoring.js'
 import {
 	loseLobbyTeamLife,
 	resetLobbyTeamLifeBlocker,
@@ -58,6 +64,111 @@ const parseReportedBlindTarget = (
 	return parseFiniteInsaneInt(blindTarget)
 }
 
+const PREVIEW_BLIND_ROWS: readonly BlindRow[] = ['Small', 'Big', 'Boss']
+
+const normalizeAggregateBlindTarget = (blindTarget: InsaneInt) => {
+	const normalized = InsaneInt.fromString(blindTarget)
+	normalized.balance()
+
+	if (normalized.startingECount === 0 && normalized.exponent === 0) {
+		return new InsaneInt(0, Math.round(normalized.coefficient), 0)
+	}
+
+	return normalized
+}
+
+const aggregateBlindTargets = (
+	targets: InsaneInt[],
+	isGlobalCoop: boolean,
+) => {
+	if (targets.length === 0) {
+		return null
+	}
+
+	const summedTargets = sumScoreValues(targets)
+	const aggregateTarget = isGlobalCoop
+		? summedTargets.div(new InsaneInt(0, targets.length, 0))
+		: summedTargets
+	return normalizeAggregateBlindTarget(aggregateTarget)
+}
+
+const aggregateReadyBlindTargets = (
+	players: Client[],
+	isGlobalCoop: boolean,
+	fallbackBlindTarget: unknown,
+) => {
+	const targets = players
+		.map((player) => parseReportedBlindTarget(player.readyBlindTarget))
+		.filter((target): target is InsaneInt => target != null)
+
+	if (targets.length === players.length && targets.length > 0) {
+		return aggregateBlindTargets(targets, isGlobalCoop)
+	}
+
+	const fallbackTarget = parseReportedBlindTarget(fallbackBlindTarget)
+	return fallbackTarget ? normalizeAggregateBlindTarget(fallbackTarget) : null
+}
+
+const aggregatePreviewBlindTarget = (
+	players: Client[],
+	isGlobalCoop: boolean,
+	previewKey: string,
+	row: BlindRow,
+) => {
+	const targets = players
+		.map((player) =>
+			player.blindPreviewKey === previewKey
+				? parseReportedBlindTarget(player.blindPreviewTargets[row])
+				: null,
+		)
+		.filter((target): target is InsaneInt => target != null)
+
+	if (targets.length !== players.length) {
+		return null
+	}
+
+	return aggregateBlindTargets(targets, isGlobalCoop)
+}
+
+export const blindPreviewAction = (
+	{ previewKey, targets }: ActionHandlerArgs<ActionBlindPreview>,
+	client: Client,
+) => {
+	if (!client.isInMatch) {
+		return
+	}
+
+	const group = getCoopBlindGroup(client)
+	if (!group) {
+		return
+	}
+
+	client.blindPreviewKey = previewKey
+	client.blindPreviewTargets = { ...targets }
+
+	const { players, isGlobalCoop } = group
+	const aggregateTargets: Partial<Record<BlindRow, string>> = {}
+	for (const row of PREVIEW_BLIND_ROWS) {
+		const aggregateTarget = aggregatePreviewBlindTarget(
+			players,
+			isGlobalCoop,
+			previewKey,
+			row,
+		)
+		if (aggregateTarget) {
+			aggregateTargets[row] = aggregateTarget.toString()
+		}
+	}
+
+	for (const player of players) {
+		sendMatchServerAction(player, {
+			action: 'coopBlindPreview',
+			previewKey,
+			targets: aggregateTargets,
+		})
+	}
+}
+
 export const startTeamCoopBlindIfReady = (
 	client: Client,
 	blindKind: BlindKind,
@@ -74,9 +185,13 @@ export const startTeamCoopBlindIfReady = (
 
 	const { lobby, groupId, players, isGlobalCoop } = group
 	lobby.teamState.deleteBlindTarget(groupId)
-	const parsedBlindTarget = parseReportedBlindTarget(blindTarget)
-	if (parsedBlindTarget) {
-		lobby.teamState.setBlindTarget(groupId, parsedBlindTarget)
+	const aggregateBlindTarget = aggregateReadyBlindTargets(
+		players,
+		isGlobalCoop,
+		blindTarget,
+	)
+	if (aggregateBlindTarget) {
+		lobby.teamState.setBlindTarget(groupId, aggregateBlindTarget)
 	}
 	if (isGlobalCoop) {
 		lobby.teamState.clearLifeBlockers()
@@ -90,7 +205,10 @@ export const startTeamCoopBlindIfReady = (
 	}
 
 	for (const player of players) {
-		sendMatchServerAction(player, { action: 'startBlind' })
+		sendMatchServerAction(player, {
+			action: 'startBlind',
+			blindTarget: aggregateBlindTarget?.toString(),
+		})
 	}
 	broadcastLobbyMatchPlayerStates(lobby, players)
 
@@ -177,7 +295,7 @@ export const handleTeamCoopBlindPlayHand = (
 
 	const { lobby, groupId, players } = group
 	const parsedBlindTarget = parseReportedBlindTarget(blindTarget)
-	if (parsedBlindTarget) {
+	if (!lobby.teamState.getBlindTarget(groupId) && parsedBlindTarget) {
 		lobby.teamState.setBlindTarget(groupId, parsedBlindTarget)
 	}
 

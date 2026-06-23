@@ -1,13 +1,17 @@
 import type {
 	ActionHandlerArgs,
+	ActionBlindPreview,
+	ActionCoopBossBlindRequest,
 	ActionLobbyOptions,
 	ActionPlayHand,
+	ActionPauseAnteTimerRequest,
 	ActionReadyBlind,
 	ActionReadySkipBlind,
 	ActionSetAnte,
 	ActionSetFurthestBlind,
 	ActionSetLocation,
 	ActionSkip,
+	ActionStartAnteTimerRequest,
 } from '../../../actions.js'
 import { isBlindKind, isBlindRow, isSkipBlindRow } from '../../../blindRules.js'
 import { playHandAction } from '../../../blindFlowHandlers.js'
@@ -16,6 +20,8 @@ import {
 	readyBlindAction,
 	unreadyBlindAction,
 } from '../../../blindReadyHandlers.js'
+import { blindPreviewAction } from '../../../teamBlindFlowHandlers.js'
+import { coopBossBlindAction } from '../../../coopBossBlindHandlers.js'
 import {
 	lobbyOptionsAction,
 	startGameAction,
@@ -44,8 +50,10 @@ import {
 import { PROTOCOL_V2_SCHEMA_IDS } from '../schemaIds.js'
 import {
 	MAX_BLIND_TARGET_LENGTH,
+	MAX_BLIND_KEY_LENGTH,
 	MAX_LOCATION_LENGTH,
 	MAX_SCORE_LENGTH,
+	MAX_PREVIEW_KEY_LENGTH,
 } from './limits.js'
 import {
 	type IncomingProtocolV2RouteEntry,
@@ -54,6 +62,7 @@ import {
 	hasFiniteNumber,
 	hasOptionalFiniteNumber,
 	hasNonEmptyStringWithinLength,
+	hasStringWithinLength,
 	isLobbyOptionsWirePayload,
 	isRecordPayload,
 	validatedIncomingRoute,
@@ -92,12 +101,44 @@ const validateReadyBlindPayload: ProtocolPayloadValidator<
 		MAX_BLIND_TARGET_LENGTH,
 	)
 
+const isBlindPreviewTargetsPayload = (
+	targets: unknown,
+): targets is ActionHandlerArgs<ActionBlindPreview>['targets'] =>
+	isRecordPayload(targets) &&
+	Object.entries(targets).every(
+		([row, target]) =>
+			isBlindRow(row) &&
+			typeof target === 'string' &&
+			target.length <= MAX_BLIND_TARGET_LENGTH &&
+			parseFiniteInsaneInt(target) !== null,
+	)
+
+const validateBlindPreviewPayload: ProtocolPayloadValidator<
+	ActionHandlerArgs<ActionBlindPreview>
+> = (payload: unknown): payload is ActionHandlerArgs<ActionBlindPreview> =>
+	isRecordPayload(payload) &&
+	hasStringWithinLength(payload, 'previewKey', MAX_PREVIEW_KEY_LENGTH) &&
+	isBlindPreviewTargetsPayload(payload.targets)
+
+const validateCoopBossBlindPayload: ProtocolPayloadValidator<
+	ActionHandlerArgs<ActionCoopBossBlindRequest>
+> = (
+	payload: unknown,
+): payload is ActionHandlerArgs<ActionCoopBossBlindRequest> =>
+	isRecordPayload(payload) &&
+	(payload.phase === 'start' || payload.phase === 'result') &&
+	hasFiniteNumber(payload, 'ante') &&
+	(payload.bossKey === undefined ||
+		hasStringWithinLength(payload, 'bossKey', MAX_BLIND_KEY_LENGTH))
+
 const validateReadySkipBlindPayload: ProtocolPayloadValidator<
 	ActionHandlerArgs<ActionReadySkipBlind>
 > = (
 	payload: unknown,
 ): payload is ActionHandlerArgs<ActionReadySkipBlind> =>
-	isRecordPayload(payload) && isSkipBlindRow(payload.blindRow)
+	isRecordPayload(payload) &&
+	isSkipBlindRow(payload.blindRow) &&
+	hasOptionalFiniteNumber(payload, 'ante')
 
 const validatePlayHandPayload: ProtocolPayloadValidator<
 	ActionHandlerArgs<ActionPlayHand>
@@ -139,6 +180,14 @@ const validateSkipPayload: ProtocolPayloadValidator<
 > = (payload: unknown): payload is ActionHandlerArgs<ActionSkip> =>
 	isRecordPayload(payload) && hasFiniteNumber(payload, 'skips')
 
+const validateAnteTimerPayload: ProtocolPayloadValidator<
+	ActionHandlerArgs<ActionStartAnteTimerRequest | ActionPauseAnteTimerRequest>
+> = (
+	payload: unknown,
+): payload is ActionHandlerArgs<ActionStartAnteTimerRequest | ActionPauseAnteTimerRequest> =>
+	isRecordPayload(payload) &&
+	(payload.localTimer === undefined || typeof payload.localTimer === 'boolean')
+
 export const MATCH_INCOMING_PROTOCOL_ROUTE_ENTRIES: readonly IncomingProtocolV2RouteEntry[] =
 	[
 		clientIncomingRoute(
@@ -160,6 +209,22 @@ export const MATCH_INCOMING_PROTOCOL_ROUTE_ENTRIES: readonly IncomingProtocolV2R
 			'readyBlind',
 			validateReadyBlindPayload,
 			() => readyBlindAction,
+		),
+		validatedIncomingRoute<ActionHandlerArgs<ActionBlindPreview>>(
+			'match',
+			'blindPreview',
+			PROTOCOL_V2_SCHEMA_IDS.matchIntent,
+			'blindPreview',
+			validateBlindPreviewPayload,
+			() => blindPreviewAction,
+		),
+		validatedIncomingRoute<ActionHandlerArgs<ActionCoopBossBlindRequest>>(
+			'match',
+			'coopBossBlind',
+			PROTOCOL_V2_SCHEMA_IDS.matchIntent,
+			'coopBossBlind',
+			validateCoopBossBlindPayload,
+			() => coopBossBlindAction,
 		),
 		clientIncomingRoute(
 			'match',
@@ -253,16 +318,20 @@ export const MATCH_INCOMING_PROTOCOL_ROUTE_ENTRIES: readonly IncomingProtocolV2R
 			PROTOCOL_V2_SCHEMA_IDS.matchIntent,
 			() => failPvPTimerAction,
 		),
-		clientIncomingRoute(
+		validatedIncomingRoute<ActionHandlerArgs<ActionStartAnteTimerRequest>>(
 			'match',
 			'startAnteTimer',
 			PROTOCOL_V2_SCHEMA_IDS.matchIntent,
-			() => startAnteTimerAction,
+			'startAnteTimer',
+			validateAnteTimerPayload,
+			() => (actionArgs, client) => startAnteTimerAction(client, actionArgs),
 		),
-		clientIncomingRoute(
+		validatedIncomingRoute<ActionHandlerArgs<ActionPauseAnteTimerRequest>>(
 			'match',
 			'pauseAnteTimer',
 			PROTOCOL_V2_SCHEMA_IDS.matchIntent,
-			() => pauseAnteTimerAction,
+			'pauseAnteTimer',
+			validateAnteTimerPayload,
+			() => (actionArgs, client) => pauseAnteTimerAction(client, actionArgs),
 		),
 	]

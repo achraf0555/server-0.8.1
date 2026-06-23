@@ -8,10 +8,22 @@ export type ActionReadyBlind = {
 	handsLeft?: number
 	blindTarget?: string
 }
+export type ActionBlindPreview = {
+	action: 'blindPreview'
+	previewKey: string
+	targets: Partial<Record<BlindRow, string>>
+}
+export type ActionCoopBossBlindRequest = {
+	action: 'coopBossBlind'
+	phase: 'start' | 'result'
+	ante: number
+	bossKey?: string
+}
 export type ActionUnreadyBlind = { action: 'unreadyBlind' }
 export type ActionReadySkipBlind = {
 	action: 'readySkipBlind'
 	blindRow: 'Small' | 'Big'
+	ante?: number
 }
 export type ActionUnreadySkipBlind = { action: 'unreadySkipBlind' }
 export type ActionPlayHand = {
@@ -35,8 +47,15 @@ export type ActionSkip = {
 	action: 'skip'
 	skips: number
 }
-export type ActionStartAnteTimerRequest = { action: 'startAnteTimer' }
-export type ActionPauseAnteTimerRequest = { action: 'pauseAnteTimer' }
+type AnteTimerIntentFields = {
+	localTimer?: boolean
+}
+export type ActionStartAnteTimerRequest = {
+	action: 'startAnteTimer'
+} & AnteTimerIntentFields
+export type ActionPauseAnteTimerRequest = {
+	action: 'pauseAnteTimer'
+} & AnteTimerIntentFields
 export type ActionFailTimer = { action: 'failTimer' }
 export type ActionFailPvPTimer = { action: 'failPvPTimer' }
 export type ActionSyncMoney = { action: 'syncMoney'; money: number }
@@ -50,6 +69,8 @@ export type ActionSendTeamMoney = {
 export type ActionClientMatch =
 	| ActionStartGameRequest
 	| ActionReadyBlind
+	| ActionBlindPreview
+	| ActionCoopBossBlindRequest
 	| ActionUnreadyBlind
 	| ActionReadySkipBlind
 	| ActionUnreadySkipBlind

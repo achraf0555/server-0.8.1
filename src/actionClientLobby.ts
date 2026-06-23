@@ -8,6 +8,7 @@ export type ActionUsername = {
 	action: 'username'
 	username: string
 	blindCol?: number
+	blindTargetScale?: number
 	modHash: string
 }
 export type ActionCreateLobby = {

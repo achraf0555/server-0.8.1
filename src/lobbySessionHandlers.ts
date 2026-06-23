@@ -5,7 +5,7 @@ import { lobbyRequiresReady } from './lobbyRules.js'
 import { sendUtilityServerAction } from './protocol/v2/serverSend.js'
 
 export const usernameAction = (
-	{ username, blindCol, modHash }: ActionHandlerArgs<ActionUsername>,
+	{ username, blindCol, blindTargetScale, modHash }: ActionHandlerArgs<ActionUsername>,
 	client: Client,
 ) => {
 	client.username = username
@@ -13,6 +13,10 @@ export const usernameAction = (
 	client.blindCol = Number.isFinite(numericBlindCol)
 		? Math.max(1, Math.min(25, Math.floor(numericBlindCol)))
 		: 1
+	const numericBlindTargetScale = Number(blindTargetScale)
+	client.blindTargetScale = Number.isFinite(numericBlindTargetScale)
+		? Math.max(0, numericBlindTargetScale)
+		: client.blindTargetScale
 	client.modHash = modHash
 
 	if (client.lobby) {
