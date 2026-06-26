@@ -220,8 +220,22 @@ const getTotalActiveHands = (players: Client[]) => {
 	return totalHands
 }
 
-const scoreIsAtLeast = (score: InsaneInt, target: InsaneInt) =>
-	score.equalTo(target) || score.greaterThan(target)
+const scoreStrictlyBeatsEveryOtherPlayer = (
+	activePlayer: Client,
+	players: Client[],
+) =>
+	players
+		.filter((player) => player.id !== activePlayer.id)
+		.every((player) => activePlayer.score.greaterThan(player.score))
+
+const scoreStrictlyBeatsEveryOtherTeam = (
+	activeTeamId: number,
+	activeTeamScore: InsaneInt,
+	teamScores: Map<number, InsaneInt>,
+) =>
+	Array.from(teamScores.entries())
+		.filter(([teamId]) => teamId !== activeTeamId)
+		.every(([, teamScore]) => activeTeamScore.greaterThan(teamScore))
 
 const isDuelPairResolved = (left: Client, right: Client) => {
 	const leftOutOfHands = left.handsLeft <= 0
@@ -232,11 +246,11 @@ const isDuelPairResolved = (left: Client, right: Client) => {
 	}
 
 	if (leftOutOfHands) {
-		return scoreIsAtLeast(right.score, left.score)
+		return right.score.greaterThan(left.score)
 	}
 
 	if (rightOutOfHands) {
-		return scoreIsAtLeast(left.score, right.score)
+		return left.score.greaterThan(right.score)
 	}
 
 	return false
@@ -297,17 +311,13 @@ export const shouldResolveBlindNow = (lobby: Lobby, players: Client[]) => {
 
 		if (teamsWithHands.size === 1) {
 			const [activeTeamId] = teamsWithHands
-			let maxScore = new InsaneInt(0, 0, 0)
-			let leadTeamId = -1
-
-			for (const [teamId, teamScore] of teamScores.entries()) {
-				if (teamScore.greaterThan(maxScore)) {
-					maxScore = teamScore
-					leadTeamId = teamId
-				}
+			if (activeTeamId === undefined) {
+				return false
 			}
 
-			return leadTeamId === activeTeamId
+			const activeTeamScore = teamScores.get(activeTeamId)
+			return !!activeTeamScore &&
+				scoreStrictlyBeatsEveryOtherTeam(activeTeamId, activeTeamScore, teamScores)
 		}
 
 		return false
@@ -319,7 +329,5 @@ export const shouldResolveBlindNow = (lobby: Lobby, players: Client[]) => {
 	}
 
 	const activePlayer = playersWithHands[0]
-	const maxScore = highestScore(players.map((player) => player.score))
-
-	return activePlayer.score.equalTo(maxScore)
+	return scoreStrictlyBeatsEveryOtherPlayer(activePlayer, players)
 }

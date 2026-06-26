@@ -34,6 +34,14 @@ const endTeamCoopBlind = (players: Client[], lost: boolean) =>
 		sendMatchServerAction(player, { action: 'endCoopBlind', lost })
 	})
 
+const resendResolvedTeamCoopBlindToClient = (
+	client: Client,
+	lost: boolean,
+) => {
+	clearPlayerStartedBlindRuntimeState(client)
+	sendMatchServerAction(client, { action: 'endCoopBlind', lost })
+}
+
 const getCoopBlindGroup = (client: Client) => {
 	const lobby = client.lobby
 	if (!lobby) {
@@ -218,13 +226,17 @@ export const resolveTeamCoopBlindFailure = (client: Client) => {
 
 	const { lobby, groupId, players, isGlobalCoop } = group
 	if (lobby.teamState.hasResolvedCoopTeam(groupId)) {
+		resendResolvedTeamCoopBlindToClient(
+			client,
+			lobby.teamState.getResolvedCoopTeamLost(groupId) ?? false,
+		)
 		return true
 	}
 
-	lobby.teamState.addResolvedCoopTeam(groupId)
 	lobby.teamState.deleteBlindTarget(groupId)
 
 	if (isGlobalCoop) {
+		lobby.teamState.addResolvedCoopTeam(groupId, true)
 		for (const player of players) {
 			clearPlayerCoopBlindState(player)
 			clearPlayerActiveBlindState(player)
@@ -238,6 +250,7 @@ export const resolveTeamCoopBlindFailure = (client: Client) => {
 		groupId,
 		'team_coop_blind_failed',
 	)
+	lobby.teamState.addResolvedCoopTeam(groupId, true)
 	if (remainingLives <= 0) {
 		for (const player of players) {
 			clearPlayerCoopBlindState(player)
@@ -252,10 +265,6 @@ export const resolveTeamCoopBlindFailure = (client: Client) => {
 }
 
 export const handleTeamCoopBlindRoundFailure = (client: Client) => {
-	if (!client.coopBlindActive) {
-		return false
-	}
-
 	const group = getCoopBlindGroup(client)
 	if (!group) {
 		return false
@@ -263,7 +272,15 @@ export const handleTeamCoopBlindRoundFailure = (client: Client) => {
 
 	const { lobby, groupId, players } = group
 	if (lobby.teamState.hasResolvedCoopTeam(groupId)) {
+		resendResolvedTeamCoopBlindToClient(
+			client,
+			lobby.teamState.getResolvedCoopTeamLost(groupId) ?? false,
+		)
 		return true
+	}
+
+	if (!client.coopBlindActive) {
+		return false
 	}
 
 	client.handsLeft = 0
@@ -275,23 +292,27 @@ export const handleTeamCoopBlindPlayHand = (
 	blindTarget: ActionHandlerArgs<ActionPlayHand>['blindTarget'],
 	client: Client,
 ) => {
-	if (!client.coopBlindActive) {
-		return false
-	}
-
 	const group = getCoopBlindGroup(client)
 	if (!group) {
 		return false
 	}
 
 	const { lobby, groupId, players } = group
+	if (lobby.teamState.hasResolvedCoopTeam(groupId)) {
+		resendResolvedTeamCoopBlindToClient(
+			client,
+			lobby.teamState.getResolvedCoopTeamLost(groupId) ?? false,
+		)
+		return true
+	}
+
+	if (!client.coopBlindActive) {
+		return false
+	}
+
 	const parsedBlindTarget = parseReportedBlindTarget(blindTarget)
 	if (!lobby.teamState.getBlindTarget(groupId) && parsedBlindTarget) {
 		lobby.teamState.setBlindTarget(groupId, parsedBlindTarget)
-	}
-
-	if (lobby.teamState.hasResolvedCoopTeam(groupId)) {
-		return true
 	}
 
 	const teamScore = sumScores(players)
@@ -310,7 +331,7 @@ export const handleTeamCoopBlindPlayHand = (
 	const beatBlind = !teamScore.lessThan(teamBlindTarget)
 
 	if (beatBlind) {
-		lobby.teamState.addResolvedCoopTeam(groupId)
+		lobby.teamState.addResolvedCoopTeam(groupId, false)
 		lobby.teamState.deleteBlindTarget(groupId)
 		endTeamCoopBlind(players, false)
 		return true

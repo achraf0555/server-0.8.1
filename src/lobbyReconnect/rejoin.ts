@@ -63,7 +63,9 @@ export const applyResolvedTeamBlindStateOnRejoin = (
 	clearPendingBlindReadyState(client)
 
 	return {
-		lost: !isGlobalCoop && currentTeamLives < savedState.lives,
+		lost:
+			lobby.teamState.getResolvedCoopTeamLost(groupId) ??
+			(!isGlobalCoop && currentTeamLives < savedState.lives),
 	}
 }
 

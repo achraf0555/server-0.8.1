@@ -21,7 +21,7 @@ export class LobbyTeamState {
 	lives = new Map<number, number>()
 	blindTargets = new Map<number, InsaneInt>()
 	lifeBlockers = new Set<number>()
-	resolvedCoopTeams = new Set<number>()
+	resolvedCoopTeams = new Map<number, boolean>()
 	bossBlindRevisions = new Map<number, number>()
 	bossBlinds = new Map<number, Map<number, SharedBossBlindState>>()
 	pendingBossRerolls = new Map<number, PendingBossRerollState>()
@@ -102,8 +102,11 @@ export class LobbyTeamState {
 
 	hasResolvedCoopTeam = (teamId: number) => this.resolvedCoopTeams.has(teamId)
 
-	addResolvedCoopTeam = (teamId: number) => {
-		this.resolvedCoopTeams.add(teamId)
+	getResolvedCoopTeamLost = (teamId: number) =>
+		this.resolvedCoopTeams.get(teamId)
+
+	addResolvedCoopTeam = (teamId: number, lost = false) => {
+		this.resolvedCoopTeams.set(teamId, lost)
 	}
 
 	deleteResolvedCoopTeam = (teamId: number) =>
