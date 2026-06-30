@@ -29,6 +29,11 @@ const generateSeed = (length = 8) => {
 	return result
 }
 
+const getStartGameStake = (client: Client) => {
+	const rawStake = Number(client.lobby?.options.stake)
+	return Number.isFinite(rawStake) ? Math.trunc(rawStake) : 1
+}
+
 export const startGameAction = (client: Client) => {
 	const lobby = client.lobby
 
@@ -78,6 +83,11 @@ export const startGameAction = (client: Client) => {
 	broadcastLobbyAction(lobby, {
 		action: 'startGame',
 		deck: 'c_multiplayer_1',
+		back: String(lobby.options.back ?? 'Red Deck'),
+		challenge: String(lobby.options.challenge ?? ''),
+		sleeve: String(lobby.options.sleeve ?? 'sleeve_casl_none'),
+		cocktail: String(lobby.options.cocktail ?? ''),
+		stake: getStartGameStake(client),
 		seed: lobby.options.different_seeds ? undefined : generateSeed(),
 	})
 

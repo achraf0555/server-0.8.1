@@ -25,6 +25,11 @@ type ActiveSharedSyncContext = SharedSyncContext & {
 
 type SharedSyncGroupMember = Pick<Client, 'lobby' | 'team'>
 
+const shouldUseGlobalCardSyncGroup = (
+	lobby: Lobby,
+	optionKey: SharedSyncOptionKey,
+) => optionKey === 'team_card_sync' && !isTeamLobbyType(lobby.lobbyType)
+
 export const lobbyUsesSharedSyncGroup = (
 	lobby: Lobby | null | undefined,
 ): lobby is Lobby =>
@@ -63,7 +68,7 @@ const getClientSharedSyncGroupIdForOption = (
 	client: SharedSyncGroupMember,
 	optionKey: SharedSyncOptionKey,
 ) =>
-	optionKey === 'team_card_sync'
+	client.lobby && shouldUseGlobalCardSyncGroup(client.lobby, optionKey)
 		? GLOBAL_COOP_SYNC_GROUP_ID
 		: getClientSharedSyncGroupId(client)
 
@@ -72,7 +77,7 @@ const getLobbyActiveSharedSyncGroupPlayersForOption = (
 	groupId: number,
 	optionKey: SharedSyncOptionKey,
 ) =>
-	optionKey === 'team_card_sync'
+	shouldUseGlobalCardSyncGroup(lobby, optionKey)
 		? getLobbyActivePlayers(lobby)
 		: getLobbyActiveSharedSyncGroupPlayers(lobby, groupId)
 

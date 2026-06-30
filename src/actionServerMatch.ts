@@ -3,6 +3,10 @@ import type { BlindKind, BlindRow } from './actions.js'
 export type ActionStartGame = {
 	action: 'startGame'
 	deck: string
+	back?: string
+	challenge?: string
+	sleeve?: string
+	cocktail?: string
 	stake?: number
 	seed?: string
 }
