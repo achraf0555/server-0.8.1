@@ -51,15 +51,35 @@ export class InsaneInt {
 	}
 
 	greaterThan(other: InsaneInt) {
+		// Balance first: comparison by startingECount/exponent/coefficient only
+		// makes sense once both numbers are in canonical form.
+		this.balance()
+		other.balance()
+
+		const mySign = Math.sign(this.coefficient)
+		const otherSign = Math.sign(other.coefficient)
+
+		// Different signs (or one is zero): sign alone decides it.
+		if (mySign !== otherSign) {
+			return mySign > otherSign
+		}
+		if (mySign === 0) {
+			return false
+		}
+
+		// Same sign: compare magnitude the old way...
+		let magnitudeCompare: number
 		if (this.startingECount !== other.startingECount) {
-			return this.startingECount > other.startingECount
+			magnitudeCompare = this.startingECount - other.startingECount
+		} else if (this.exponent !== other.exponent) {
+			magnitudeCompare = this.exponent - other.exponent
+		} else {
+			magnitudeCompare = Math.abs(this.coefficient) - Math.abs(other.coefficient)
 		}
 
-		if (this.exponent !== other.exponent) {
-			return this.exponent > other.exponent
-		}
-
-		return this.coefficient > other.coefficient
+		// ...but for two negative numbers, the one with the SMALLER magnitude
+		// is the greater number (-5 > -10), so the comparison flips.
+		return mySign > 0 ? magnitudeCompare > 0 : magnitudeCompare < 0
 	}
 
 	equalTo(other: InsaneInt) {
@@ -86,14 +106,13 @@ export class InsaneInt {
 			return false
 		}
 
-		// Improper balancing
-		if (
-			(this.coefficient >= 10 && this.exponent > 0) ||
-			this.coefficient >= 10000000
-		) {
+		// Improper balancing (checked on magnitude - sign doesn't affect
+		// whether the coefficient/exponent split is in canonical range)
+		const magnitude = Math.abs(this.coefficient)
+		if ((magnitude >= 10 && this.exponent > 0) || magnitude >= 10000000) {
 			return false
 		}
-		if (this.coefficient < 1 && this.exponent > 0) {
+		if (magnitude < 1 && this.exponent > 0) {
 			return false
 		}
 		if (this.exponent >= 10000000) {
@@ -109,7 +128,19 @@ export class InsaneInt {
 	}
 
 	balance() {
+		let iterations = 0
+		const MAX_BALANCE_ITERATIONS = 10000
+
 		while (!this.isBalanced()) {
+			iterations += 1
+			if (iterations > MAX_BALANCE_ITERATIONS) {
+				throw new Error(
+					`InsaneInt.balance() failed to converge after ${MAX_BALANCE_ITERATIONS} iterations ` +
+						`(startingECount=${this.startingECount}, coefficient=${this.coefficient}, exponent=${this.exponent}). ` +
+						'This indicates a genuine normalization bug, not a slow-but-valid case - please report it.',
+				)
+			}
+
 			if (this.coefficient === 0) {
 				this.exponent = 0
 				this.startingECount = 0
@@ -127,18 +158,24 @@ export class InsaneInt {
 				this.exponent = Math.floor(this.exponent)
 			}
 
-			// Balance coefficient and exponent
-			if (
-				(this.coefficient >= 10 && this.exponent > 0) ||
-				this.coefficient >= 10000000
-			) {
-				const change = Math.floor(this.coefficient).toString().length - 1
+			// Balance coefficient and exponent. All comparisons and the digit-count/
+			// log10 math below operate on the magnitude - coefficient may be negative
+			// (e.g. a negative score delta), and both Math.log10 and
+			// Math.floor(x).toString().length behave incorrectly (NaN, or an extra
+			// "-" character thrown into the digit count) if given a negative input
+			// directly. Multiplying/dividing this.coefficient by a positive change
+			// factor naturally preserves whatever sign it already had.
+			let magnitude = Math.abs(this.coefficient)
+
+			if ((magnitude >= 10 && this.exponent > 0) || magnitude >= 10000000) {
+				const change = Math.floor(magnitude).toString().length - 1
 				this.coefficient /= 10 ** change
 				this.exponent += change
 			}
 
-			if (this.coefficient < 1 && this.exponent > 0) {
-				let change = Math.ceil(Math.log10(1 / this.coefficient))
+			magnitude = Math.abs(this.coefficient)
+			if (magnitude < 1 && this.exponent > 0) {
+				let change = Math.ceil(Math.log10(1 / magnitude))
 				if (change >= this.exponent) {
 					change = this.exponent - 1
 				}
